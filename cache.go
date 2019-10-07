@@ -93,10 +93,6 @@ type Config struct {
 	// OnEvict is called for every eviction and passes the hashed key, value,
 	// and cost to the function.
 	OnEvict func(key uint64, value interface{}, cost int64)
-	// KeyToHash function is used to customize the key hashing algorithm.
-	// Each key will be hashed using the provided function. If keyToHash value
-	// is not set, the default keyToHash function is used.
-	KeyToHash func(key interface{}) uint64
 	// Cost evaluates a value and outputs a corresponding cost. This function
 	// is ran after Set is called for a new item or an item update with a cost
 	// param of 0.
@@ -136,7 +132,6 @@ func NewCache(config *Config) (*Cache, error) {
 		getBuf:    newRingBuffer(policy, config.BufferItems),
 		setBuf:    make(chan *item, setBufSize),
 		onEvict:   config.OnEvict,
-		keyToHash: config.KeyToHash,
 		stop:      make(chan struct{}),
 		cost:      config.Cost,
 	}
@@ -156,17 +151,17 @@ func NewCache(config *Config) (*Cache, error) {
 // Get returns the value (if any) and a boolean representing whether the
 // value was found or not. The value can be nil and the boolean can be true at
 // the same time.
-func (c *Cache) Get(key interface{}) (interface{}, bool) {
+func (c *Cache) Get(key uint64) (interface{}, bool) {
 	if c == nil {
 		return nil, false
 	}
-	hash := c.keyToHash(key)
-	c.getBuf.Push(hash)
-	val, ok := c.store.Get(hash)
+
+	c.getBuf.Push(key)
+	val, ok := c.store.Get(key)
 	if ok {
-		c.stats.Add(hit, hash, 1)
+		c.stats.Add(hit, key, 1)
 	} else {
-		c.stats.Add(miss, hash, 1)
+		c.stats.Add(miss, key, 1)
 	}
 	return val, ok
 }
@@ -180,13 +175,13 @@ func (c *Cache) Get(key interface{}) (interface{}, bool) {
 // To dynamically evaluate the items cost using the Config.Coster function, set
 // the cost parameter to 0 and Coster will be ran when needed in order to find
 // the items true cost.
-func (c *Cache) Set(key, value interface{}, cost int64) bool {
+func (c *Cache) Set(key uint64, value interface{}, cost int64) bool {
 	if c == nil {
 		return false
 	}
 	i := &item{
 		flag:  itemNew,
-		key:   c.keyToHash(key),
+		key:   key,
 		value: value,
 		cost:  cost,
 	}
@@ -206,13 +201,13 @@ func (c *Cache) Set(key, value interface{}, cost int64) bool {
 }
 
 // Del deletes the key-value item from the cache if it exists.
-func (c *Cache) Del(key interface{}) {
+func (c *Cache) Del(key uint64) {
 	if c == nil {
 		return
 	}
 	c.setBuf <- &item{
 		flag: itemDelete,
-		key:  c.keyToHash(key),
+		key:  key,
 	}
 }
 

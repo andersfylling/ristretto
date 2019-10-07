@@ -194,7 +194,7 @@ func TestCacheClear(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	for i := 0; i < 10; i++ {
+	for i := uint64(0); i < 10; i++ {
 		c.Set(i, i, 1)
 	}
 	time.Sleep(time.Millisecond)
@@ -205,7 +205,7 @@ func TestCacheClear(t *testing.T) {
 	if c.stats.Get(keyAdd) != 0 {
 		t.Fatal("clear didn't reset metrics")
 	}
-	for i := 0; i < 10; i++ {
+	for i := uint64(0); i < 10; i++ {
 		if val, ok := c.Get(i); val != nil || ok {
 			t.Fatal("clear didn't delete values")
 		}
@@ -222,7 +222,7 @@ func TestCacheMetrics(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	for i := 0; i < 10; i++ {
+	for i := uint64(0); i < 10; i++ {
 		c.Set(i, i, 1)
 	}
 	time.Sleep(time.Millisecond)
